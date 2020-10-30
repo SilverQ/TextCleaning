@@ -17,6 +17,8 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 
 # 파이썬으로 영어와 한국어 텍스트 다루기
 # https://www.lucypark.kr/courses/2015-dm/text-mining.html
+# NetworkX 모듈을 이용해서 SNA 차트 생성
+# https://networkx.org/documentation/stable/reference/algorithms/bipartite.html
 
 stop_set = set(stopwords.words('english'))
 # print(len(stop_set))    # 179
