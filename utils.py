@@ -12,6 +12,14 @@ import csv
 # Install xlrd >= 1.0.0 for Excel support Use pip or conda to install xlrd.
 
 
+def set_pandas_display_options() -> None:
+    display = pd.options.display
+    display.max_columns = 100
+    display.max_rows = 100
+    display.max_colwidth = 199
+    display.width = None
+
+
 def plot_hist(df):
     ax = df.plot.hist(density=False, alpha=0.9, bins=int((10 / 2)))
     # plt.axis([0, 10, 0, 13000])

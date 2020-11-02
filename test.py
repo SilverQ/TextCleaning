@@ -5,6 +5,24 @@ from collections import Counter, defaultdict
 import pickle
 
 
+# # for loop 1'st
+# for text in df_kor['발명의명칭']:
+#     print('Original Text : ', text)
+#     print('Tokenized Text : ', tokenizer.tokenize(text), '\n')
+
+# # for loop 2'nd, https://3months.tistory.com/419, iterrow에 비해 3배 빠름
+# for i in df_kor.index:
+#     text = df.loc[i, '발명의명칭']
+#     print(text, tokenizer.tokenize(text))
+
+# # 이제 없어지는듯. underscore를 사용해야 객체 사용이 가능한데, protected member라고 나옴
+# # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Index.get_value.html?highlight=get_value
+# # 여기엔 Fast lookup of value from 1-dimensional ndarray., Only use this if you know what you’re doing. 라고 나옴
+# for i in df_kor.index:
+#     text = df_kor._get_value(i, '발명의명칭')
+#     print(text, tokenizer.tokenize(text))
+
+
 def test_excel():
     df = pd.read_excel('sna_v2.xlsx', sheet_name='rawdata')
     # 17,000건의 Ni합금
