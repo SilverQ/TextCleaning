@@ -261,3 +261,5 @@ def build_word_frequency_distribution():
     return docs_cnt, freq, freq_doc
 
 
+text = [('EXTREMELY', 'NNP'), ('FINE', 'NNP'), ('SHAPE', 'NNP'), ('MEMORY', 'NNP'), (',', ',')]
+print([word[0]for word in text if word[1] not in [',']])
