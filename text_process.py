@@ -39,7 +39,7 @@ def proc_time():
 df_excel = pd.read_excel('sna_v2.xlsx', sheet_name='rawdata')
 # df = pd.read_excel('sna_v2_10.xlsx', sheet_name='rawdata', encoding='utf-8')
 df_excel = df_excel.set_index('Publication Number-발행번호')
-print(proc_time(), 'Success to load Excel file with', len(df_excel), 'patents')  # Success to load Excel file with 17094 patents
+print(proc_time(), ' 1. Load Excel file with', len(df_excel), 'patents')  # Success to load Excel file with 17094 patents
 set_pandas_display_options()
 
 # print(df.columns)     # 컬럼 구성 확인
@@ -51,14 +51,14 @@ set_pandas_display_options()
 # df_kipo = df_excel[df_excel['발행국'] == 'KIPO']
 # print('Success to identify KR', len(df_kipo), 'patents')       # Success to identify KR 1409 patents
 df_kor = df_excel[df_excel['발행국'].isin(['KIPO', 'JPO'])]
-print(proc_time(), 'Success to identify KR, JP', len(df_kor), 'patents')    # Success to identify KR, JP 5721 patents
+print(proc_time(), ' 2. Identify KR, JP', len(df_kor), 'patents')    # Success to identify KR, JP 5721 patents
 # tokenizer = TreebankWordTokenizer()
 
 # df_eng = df_excel[df_excel['발행국'].isin(['USPTO', 'EPO', 'CNIPA'])]
 # 이 상태에서 컬럼을 추가하거나 데이터를 가공하면 SettingWithCopyWarning이 발생하므로, 새로운 df로 만들어주는 것이 바람직하다
 df_eng = pd.DataFrame(df_excel[df_excel['발행국'].isin(['USPTO', 'EPO', 'CNIPA'])])
 # df_uspto = df_excel[df_excel['발행국'] == 'USPTO']
-print(proc_time(), 'Success to identify US, EP, CN', len(df_eng), 'patents')     # Success to identify US, EP, CN 11373 patents
+print(proc_time(), ' 3. Identify US, EP, CN', len(df_eng), 'patents')     # Success to identify US, EP, CN 11373 patents
 # df_eng는 view와 동일.
 
 
@@ -257,7 +257,7 @@ def clean_text(input_df, fname, source='발명의명칭', target='title_clean'):
     # input_df['title_clean'] = input_df['title_clean'].apply(lambda x: ' '.join([w for w in x.split() if len(w) > 1]))
     # input_df['title_clean'] = input_df['title_clean'].apply(lambda x: x.lower())
     input_df['title_token'] = input_df['발명의명칭'].apply(lambda x: word_tokenize(x))
-    print(proc_time(), 'Success to tokenize')
+    print(proc_time(), ' 4. tokenize the Title')
     input_df['title_pos'] = input_df['title_token'].apply(lambda x: pos_tag(x))
     input_df['title_pos1'] = input_df['title_pos'].apply(lambda x: [word[0] for word in x if word[1] not in stop_pos1])
     input_df['title_pos2'] = input_df['title_pos'].apply(lambda x: [word[0] for word in x if word[1] not in stop_pos2])
@@ -265,9 +265,9 @@ def clean_text(input_df, fname, source='발명의명칭', target='title_clean'):
     input_df['title_pos1'] = input_df['title_pos1'].apply(lambda x: [w for w in x if len(w) > 1])
     input_df['title_pos2'] = input_df['title_pos2'].apply(lambda x: [w for w in x if len(w) > 1])
     input_df['title_pos3'] = input_df['title_pos3'].apply(lambda x: [w for w in x if len(w) > 1])
-    print(proc_time(), 'Success to filter with pos info')
+    print(proc_time(), ' 5. Filter with pos info')
     input_df.to_csv(path, encoding='utf-8', sep='\t')
-    print(proc_time(), 'Success to save file to csv')
+    print(proc_time(), ' 6. Save file to csv')
     return input_df
 
 
@@ -284,7 +284,7 @@ title_clean1 = [' '.join(sen) for sen in title_clean1]
 title_clean2 = [' '.join(sen) for sen in title_clean2]
 title_clean3 = [' '.join(sen) for sen in title_clean3]
 # print(title_clean)
-print(proc_time(), 'Success to extract cleaned title')
+print(proc_time(), ' 7. Extract cleaned title')
 
 
 def draw_wordcloud(text, f_name):
@@ -307,35 +307,51 @@ def draw_wordcloud(text, f_name):
 # draw_wordcloud(title_orig, 'title_orig')
 
 df_sna = pd.DataFrame(df_eng[['출원년', '출원인/특허권자', 'title_pos3']])
-# print(df_sna.head(3))
+# print('단어 목록 추출\n', df_sna.head(3))
 # of가 눈에 띄는 이유는 형태소 분석 결과에 오류가 있기 때문. IDF를 사용하여 걸러줄 수단을 추가해주자.
 # df_sna['title_pos3'] = df_sna['title_pos3'].apply(lambda x: pd.Series(x))
 df_sna2 = pd.DataFrame(df_sna.explode('title_pos3'))
-print(df_sna2.head(5))
-print(proc_time(), 'Success to exploding keyword')
+# print('열 내리기\n', df_sna2.head(2))
+print(proc_time(), ' 8. Exploding keyword')
 # 정제가 끝난 '발명의 명칭'은 한 셀에 리스트 형태로 들어가 있으며, 이를 열로 내리기 위해 explode 함수를 사용한다.
 
-# print(df_sna2.head(10))
-
 # sql에서 inner join하여 edge를 구하자
-df_sna3 = pd.DataFrame(df_sna2.groupby(['출원년', '출원인/특허권자', 'title_pos3']).count())
+df_sna2['weight'] = 1
 # df_sna2 = df_sna2.set_index(['출원년', '출원인/특허권자', 'title_pos3'])
-print(df_sna3.head(5))
-print(proc_time(), 'Success to reduce duplicate')
+# print('weight column 추가\n', df_sna2.head(2))
+
+df_sna3 = df_sna2.groupby(['출원년', '출원인/특허권자', 'title_pos3']).count().reset_index()
+# print('단어 빈도수 산출\n', df_sna3.head(2))
+# df_sna3 = df_sna3.set_index('title_pos3')
+print(proc_time(), ' 9. Count of words\n\n')
 
 # df_sna4 = pd.DataFrame(pd.merge(df_sna3, df_sna3, left_on='title_pos3', right_index=True))
-# print(df_sna4.head(5))
-# print(proc_time(), 'Success to merge table')
-#
-# df_sna5 = pd.DataFrame(df_sna4.groupby(['출원년_x', '출원년_y', '출원인/특허권자_x', '출원인/특허권자_y']
-#                                        , as_index=True).count()).reset_index()
+df_sna4 = pd.merge(df_sna3, df_sna3, how='inner', left_on='title_pos3', right_on='title_pos3')
+# print('self join\n', df_sna4.head(2))
+print(proc_time(), '10. Merge table\n')
+
+df_sna5 = df_sna4[df_sna4['출원년_x'] == df_sna4['출원년_y']]
+df_sna5 = df_sna5[df_sna5['출원인/특허권자_x'] != df_sna5['출원인/특허권자_y']]
+df_sna5['edge'] = (df_sna5['weight_x'] + df_sna5['weight_y']) / 2
 # print(df_sna5.head(5))
-# print(proc_time(), 'Success to create aggregate')
-# # df_sna4 = df_sna4.set_index(['출원년_x', '출원년_y', '출원인/특허권자_x', '출원인/특허권자_y'])
-# df_sna6 = df_sna5[df_sna5['출원년_x'] == df_sna5['출원년_y']]
-# df_sna6 = df_sna6[df_sna6['출원인/특허권자_x'] != df_sna6['출원인/특허권자_y']]
+print(proc_time(), '11. Prepare edge list\n')
+
+df_sna6 = df_sna5[['title_pos3', '출원년_x', '출원인/특허권자_x', '출원인/특허권자_y', 'edge']]
+df_sna6 = df_sna6.groupby(['출원년_x', '출원인/특허권자_x', '출원인/특허권자_y']).sum('edge').reset_index()
+df_sna6.columns = ['Timestamp', 'Source', 'Target', 'Weight']
 # print(df_sna6.head(5))
-# print(proc_time(), 'Success to create edge list')
+print(proc_time(), '12. Create edge list\n')
+
+df_node = pd.DataFrame(df_eng['출원인/특허권자'])
+df_node = df_node.reset_index()
+df_node = df_node.groupby(['출원인/특허권자']).count()
+df_node = df_node.reset_index()
+df_node['Id'] = df_node['출원인/특허권자']
+df_node.columns = ['Id', 'Cnt', 'Label']
+# print(df_node.head(5))
+df_node.to_csv(os.path.join(data_dir, 'r_node.csv'), encoding='utf-8', sep='\t', index=False)
+df_sna6.to_csv(os.path.join(data_dir, 'r_edge.csv'), encoding='utf-8', sep='\t', index=False)
+print(proc_time(), '13. Save edge list\n')
 
 
 # print(nltk.help.upenn_tagset())
