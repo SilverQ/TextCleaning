@@ -5,14 +5,14 @@ from math import log  # IDF 계산을 위해
 import pickle
 from utils import *
 from wordcloud import WordCloud
-import nltk
-from nltk import regexp_tokenize    # 영어 토크나이저
 from konlpy.tag import Twitter
 from nltk.corpus import stopwords   # 한글 토크나이저
-from matplotlib.animation import FuncAnimation
+# import nltk
+# from nltk import regexp_tokenize    # 영어 토크나이저
+# from matplotlib.animation import FuncAnimation
 # import numpy as np
 # import pandas as pd
-from sklearn.feature_extraction.text import TfidfVectorizer
+# from sklearn.feature_extraction.text import TfidfVectorizer
 # import spacy
 
 # 파이썬으로 영어와 한국어 텍스트 다루기

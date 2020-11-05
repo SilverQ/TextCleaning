@@ -5,11 +5,15 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from psycopg2.extras import DictCursor
 import time
-import numpy as np
-import csv
+# import numpy as np
+# import csv
 
 # ImportError: Missing optional dependency 'xlrd'.
 # Install xlrd >= 1.0.0 for Excel support Use pip or conda to install xlrd.
+
+
+def proc_time(starting_time):
+    return str(round(time.time() - starting_time, 1)) + ' sec : '
 
 
 def set_pandas_display_options() -> None:
