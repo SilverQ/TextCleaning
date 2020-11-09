@@ -37,6 +37,12 @@ df_eng = pd.DataFrame(df_excel[df_excel['발행국'].isin(['USPTO', 'EPO', 'CNIP
 print(proc_time(starting_time), ' 3. Identify US, EP, CN', len(df_eng), 'patents')     # Success to identify US, EP, CN 11373 patents
 
 stop_word_set = set(stopwords.words('english'))
+print(stop_word_set)
+stop_word_set.add('NICKEL'.lower())
+stop_word_set.add('METHOD'.lower())
+stop_word_set.add('METHODS'.lower())
+stop_word_set.add('ALLOY'.lower())
+stop_word_set.add('ALLOYS'.lower())
 
 
 # 제거할 pos tag를 list 형태로 반환
@@ -230,29 +236,37 @@ def stop_pos(level=3):
 
 
 # 특정 형태소가 제거된 발명의 명칭을 list 형태로 반환
-def extract_clean_text(input_df, pos_level=3):
+def clean_text(input_df, pos_level=3):
     stop_pos_list = stop_pos(pos_level)     # 1~3으로 입력해서 사용하자, 1은 전치사 등 최소 제거, 2는 부사형 제거, 3은 동사형 제거까지
+    # input_df['title_token'] = input_df['발명의명칭'].apply(lambda x: x.lower())
     input_df['title_token'] = input_df['발명의명칭'].apply(lambda x: word_tokenize(x))
     print(proc_time(starting_time), ' 4. tokenize the Title')
     input_df['title_pos'] = input_df['title_token'].apply(lambda x: pos_tag(x))
-    input_df['title_clean'] = input_df['title_pos'].apply(lambda x: [word[0] for word in x if word[1] not in stop_pos_list])
+    input_df['title_clean'] = input_df['title_pos'].apply(
+        lambda x: [word[0].lower() for word in x if word[1] not in stop_pos_list]
+    )
+    input_df['title_clean'] = input_df['title_clean'].apply(lambda x: [w for w in x if w not in stop_word_set])
     input_df['title_clean'] = input_df['title_clean'].apply(lambda x: [w for w in x if len(w) > 1])
     print(proc_time(starting_time), ' 5. Filter with pos info')
+    return input_df
+    # title_clean3 = [' '.join(sen) for sen in input_df['title_clean'].tolist()]
+    # return title_clean3
 
-    title_clean3 = [' '.join(sen) for sen in input_df['title_clean'].tolist()]
-    return title_clean3
 
-
-def draw_wordcloud(text, f_name):
-    wc1 = WordCloud(max_font_size=200, stopwords=stop_word_set, background_color='white',
-                    max_words=100, random_state=42, width=800, height=400)
+def draw_wordcloud(text, f_name, action='show'):
+    wc1 = WordCloud(max_font_size=150, stopwords=stop_word_set, background_color='white',
+                    max_words=200, random_state=42, width=1200, height=800)
     wc1.generate(' '.join(text))
-    plt.figure(figsize=(8, 4))
+    plt.figure(figsize=(9, 6))
     plt.imshow(wc1)
     plt.tight_layout(pad=0)
     plt.axis('off')
-    # plt.show()
-    plt.savefig(os.path.join(param['img_dir'], f_name+'.png'))
+    if action == 'show':
+        plt.show(block=False)
+        plt.pause(2)
+        plt.close()
+    else:
+        plt.savefig(os.path.join(param['img_dir'], f_name+'.png'))
 
 
 def sna_bipartite(input_df, node_col, timestamp_col, edge_col):
@@ -305,15 +319,21 @@ def save_sna_text():
     print(proc_time(starting_time), '13. Save edge list\n')
 
 
-def make_animation(input_df, filter):
+def make_animation(input_df, filter, start=2000, end=2020, stride=3, window=5):
     ipo_filter = '발행국'
     ipo_val = 'USPTO'
-    df_temp = pd.DataFrame(input_df[input_text[ipo_filter].isin([ipo_val])])
-    print(df_temp.describe())
+    df_temp = input_df[input_df[ipo_filter].isin([ipo_val])]
+    for year in range(start-window+1, end+1, stride):
+        df_temp1 = df_temp[df_temp['출원년'].isin([y for y in range(year, year+window+1)])]
+        input_text = [' '.join(sen) for sen in df_temp1['title_clean'].tolist()]
+        if len(input_text) > 0:
+            print(year, '-', year+window, '\n', df_temp1['Application Number-출원번호'].count())
+            draw_wordcloud(input_text, '', 'show')
     pass
 
 
-input_text = extract_clean_text(df_eng, pos_level=3)
+cleaned_df = clean_text(df_eng, pos_level=3)
+# input_text = [' '.join(sen) for sen in cleaned_df['title_clean'].tolist()]
 print(proc_time(starting_time), ' 7. Extract cleaned title')
 # draw_wordcloud(input_text, 'test_wordcloud')
 # draw_wordcloud(title_clean1, 'title_clean1')
@@ -324,4 +344,4 @@ print(proc_time(starting_time), ' 7. Extract cleaned title')
 
 ani_filter = {'발행국': 'USPTO'}
 
-# make_animation(df_eng, filter=ani_filter)
+make_animation(df_eng, filter=ani_filter)

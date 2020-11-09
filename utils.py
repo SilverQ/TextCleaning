@@ -3,6 +3,7 @@ import psycopg2 as pg2
 from matplotlib.ticker import FormatStrFormatter
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 from psycopg2.extras import DictCursor
 import time
 # import numpy as np
