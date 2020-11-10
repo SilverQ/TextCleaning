@@ -333,4 +333,3 @@ sna_df.to_csv(os.path.join(data_dir, 'sna_text_cleaned.csv'),
 # # 등록년구간-심사결과(4年)	등록년구간-심사결과(10年)	2극이상등록결정
 # # TOP5(글로벌TOP5/국내TOP5)	TOP5(2극이상출원기준)
 # # 법적코드	법적설명	법적상세
-
