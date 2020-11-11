@@ -1,5 +1,8 @@
 # coding=utf8
 import os
+from PIL import Image
+import psycopg2 as pg2
+from psycopg2.extras import DictCursor
 from utils import *
 from konlpy.tag import Okt
 from nltk.tokenize import TreebankWordTokenizer, word_tokenize
@@ -14,6 +17,9 @@ from sklearn.preprocessing import Normalizer
 import imageio
 # import time
 # import nltk
+
+# nltk.tokenize의 word_tokenize, nltk.stem의 PorterStemmer, nltk.stem.wordnet의 WordNetLemmatizer 조합으로
+# 토큰화, root형 통합 수행
 
 
 def params():
@@ -42,25 +48,41 @@ print(proc_time(starting_time), ' 3. Identify US, EP, CN', len(df_eng), 'patents
 
 stop_word_set = set(stopwords.words('english'))
 print(stop_word_set)
+# Ni합금 불용어
 # stop_word_set.add('NICKEL'.lower())
 # stop_word_set.add('METHOD'.lower())
 # stop_word_set.add('METHODS'.lower())
 # stop_word_set.add('ALLOY'.lower())
 # stop_word_set.add('ALLOYS'.lower())
+
+# IOT 불용어(담당자)
 stop_word_set.add('device'.lower())
-stop_word_set.add('method'.lower())
-stop_word_set.add('system'.lower())
-stop_word_set.add('apparatus'.lower())
-stop_word_set.add('service'.lower())
-stop_word_set.add('network'.lower())
 stop_word_set.add('devices'.lower())
-stop_word_set.add('thereof'.lower())
-stop_word_set.add('internet'.lower())
-stop_word_set.add('using'.lower())
+stop_word_set.add('method'.lower())
 stop_word_set.add('methods'.lower())
+stop_word_set.add('system'.lower())
 stop_word_set.add('systems'.lower())
-# stop_word_set.add(''.lower())
-# stop_word_set.add(''.lower())
+stop_word_set.add('apparatus'.lower())
+stop_word_set.add('kind'.lower())
+stop_word_set.add('using'.lower())
+stop_word_set.add('internet'.lower())
+
+# IOT 불용어(내가 추가)
+stop_word_set.add('network'.lower())
+stop_word_set.add('thereof'.lower())
+# stop_word_set.add('management'.lower())
+# stop_word_set.add('communication'.lower())
+# stop_word_set.add('data'.lower())
+# stop_word_set.add('control'.lower())
+# stop_word_set.add('detection'.lower())
+
+# stop_word_set.add('service'.lower())
+# stop_word_set.add('wireless'.lower())
+# stop_word_set.add('sensor'.lower())
+# stop_word_set.add('monitoring'.lower())
+# stop_word_set.add('security'.lower())
+# stop_word_set.add('access'.lower())
+# stop_word_set.add('based'.lower())
 # stop_word_set.add(''.lower())
 # stop_word_set.add(''.lower())
 # stop_word_set.add(''.lower())
@@ -87,12 +109,16 @@ def clean_text(input_df, pos_level=3):
     # return title_clean3
 
 
-def draw_wordcloud(text, f_name, action='show'):
-    fig_x, fig_y = 1200, 800
-    wc1 = WordCloud(max_font_size=int(fig_y/3), stopwords=stop_word_set, background_color='white',
-                    max_words=int(fig_y/4), random_state=42, width=fig_x, height=fig_y)
+def draw_wordcloud(text, image_f, action='show', mask_f='mask.png'):
+    size_x, size_y = 9, 6
+    plot_dpi = 300
+    mask_im = np.array(Image.open(mask_f))
+    # fig_x = size_x * plot_dpi
+    # fig_y = size_y * plot_dpi
+    wc1 = WordCloud(max_font_size=int(size_x*20), stopwords=stop_word_set, mask=mask_im, background_color='white',
+                    max_words=int(size_x*80), random_state=42, width=size_x*plot_dpi, height=size_y*plot_dpi)
     wc1.generate(' '.join(text))
-    plt.figure(figsize=(9, 6))
+    plt.figure(figsize=(size_x, size_y))  # 단위 : 인치
     plt.imshow(wc1)
     plt.tight_layout(pad=0)
     plt.axis('off')
@@ -101,7 +127,7 @@ def draw_wordcloud(text, f_name, action='show'):
         plt.pause(1)
         plt.close()
     else:
-        plt.savefig(os.path.join(param['img_dir'], f_name+'.png'))
+        plt.savefig(os.path.join(param['img_dir'], image_f+'.png'))
 
 
 def sna_bipartite(input_df, node_col, timestamp_col, edge_col):
@@ -154,17 +180,26 @@ def save_sna_text():
     print(proc_time(starting_time), '13. Save edge list\n')
 
 
-def make_animation(input_df, filter, start=2000, end=2020, stride=1, window=5, padding=0):
-    ipo_filter = '발행국'
-    ipo_val = ['USPTO', 'US']
-    df_temp = input_df[input_df[ipo_filter].isin(ipo_val)]
+def make_animation(input_df, nation, start=2000, end=2020, stride=1, window=5, padding=0):
+    # ipo_filter = filter.keys()
+    # ipo_val = filter(ipo_filter)
+    df_temp = input_df[input_df['발행국'].isin(nation)]
     for year in range(start-padding, end+1, stride):
         df_temp1 = df_temp[df_temp['출원년'].isin([y for y in range(year, year+window+1)])]
         input_text = [' '.join(sen) for sen in df_temp1['title_clean'].tolist()]
         if len(input_text) > 0:
             print(year, '-', year+window, '\n', df_temp1['출원년'].count())
-            draw_wordcloud(input_text, 'USPTO_'+str(year)+'-'+str(year+window), 'show-')
+            draw_wordcloud(input_text, nation[0]+'_'+str(year)+'-'+str(year+window), 'show-')
         # pass
+
+
+def make_wordcnt(input_df, nation):
+    df_temp = input_df[input_df['발행국'].isin(nation)]
+    input_text = [' '.join(sen) for sen in df_temp['title_clean'].tolist()]
+    print(input_text[:10])
+    # if len(input_text) > 0:
+    #     draw_wordcloud(input_text, nation[0], 'show-')
+    pass
 
 
 cleaned_df = clean_text(df_eng, pos_level=3)
@@ -174,11 +209,38 @@ print(proc_time(starting_time), ' 7. Extract cleaned title')
 # draw_wordcloud(title_clean1, 'title_clean1')
 # save_sna_text()
 
-cloud_filter = {'발행국': 'USPTO'}
 
 # make_animation(df_eng, filter=ani_filter, start=2000, end=2020, stride=1, window=5, padding=0)
 
-f_name = 'IOT_1029_1.xlsx'
+# f_name = 'IOT_1029_1.xlsx'
+# cloud_filter = ['USPTO', 'US']
+# make_animation(df_eng, nation=cloud_filter,
+#                start=2010, end=2020, stride=5, window=5, padding=0)
+# cloud_filter = ['CNIPA', 'CN', 'china.png']
+# make_animation(df_eng, nation=cloud_filter,
+#                start=2010, end=2020, stride=5, window=5, padding=0)
+# cloud_filter = ['EPO', 'EP']
+# make_animation(df_eng, nation=cloud_filter,
+#                start=2010, end=2020, stride=5, window=5, padding=0)
 
-make_animation(df_eng, filter=cloud_filter,
-               start=2010, end=2020, stride=5, window=5, padding=0)
+def nation_wordcloud(input_df, nation):
+    df_temp = input_df[input_df['발행국'].isin(nation)]
+    input_text = [' '.join(sen) for sen in df_temp['title_clean'].tolist()]
+    if len(input_text) > 0:
+        draw_wordcloud(input_text, nation[0], 'show-')
+
+
+# nation_wordcloud(df_eng, nation=['US'])
+# nation_wordcloud(df_eng, nation=['CN'])
+# nation_wordcloud(df_eng, nation=['EP'])
+
+make_wordcnt(df_eng, nation=['USPTO', 'US'])
+
+# 입력 형태 : 엑셀, csv, db
+# 재료 : 파일, db
+#  엑셀에 있는 정보를 쓰려면 컬럼이 맞아야 하고, DB의 정보를 쓰려면 KIWEE 발행번호를 받아야 함
+#  IOT로 테스트해보니, 데이터를 변경해서 발행번호가 아닌 번호를 키로 사용 중, 발행번호를 입력토록 사전에 정하는게 바람직할 것으로 예상
+#  어떻게 보면, 단어의 순위가 비슷한 것들을 일괄 제거하는 편이 더 바람직할 수도
+#  워드 클라우드를 문장으로 입력하면 구문까지 표시해주지만, 빈도로 입력하면 단어만 표시될 것으로 예상
+# 데이터 정제 : TF-IDF, 불용어 지정, 형태소 분석, LEMMATIZE
+# 워드클라우스 생성
