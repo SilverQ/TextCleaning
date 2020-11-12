@@ -9,9 +9,13 @@ import time
 import numpy as np
 from nltk.corpus import stopwords, wordnet
 # import csv
+from colorama import Style, Fore
 
 # ImportError: Missing optional dependency 'xlrd'.
 # Install xlrd >= 1.0.0 for Excel support Use pip or conda to install xlrd.
+
+starting_time = time.time()
+step_color = Fore.RED
 
 
 def get_wordnet_pos(treebank_tag):
@@ -220,6 +224,10 @@ def stop_pos(level=3):
 
 def proc_time(starting_time):
     return str(round(time.time() - starting_time, 1)) + 'sec'
+
+
+def print_step(index, desc):
+    print(f'{step_color}Step ' + str(index) + '.(' + str(proc_time(starting_time)) + ') ' + desc + f'.{Style.RESET_ALL}')
 
 
 def set_pandas_display_options() -> None:

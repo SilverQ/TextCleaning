@@ -263,3 +263,42 @@ def build_word_frequency_distribution():
 
 text = [('EXTREMELY', 'NNP'), ('FINE', 'NNP'), ('SHAPE', 'NNP'), ('MEMORY', 'NNP'), (',', ',')]
 print([word[0]for word in text if word[1] not in [',']])
+
+
+# df_excel = pd.read_excel('IOT_1029_1.xlsx')
+# df_excel = df_excel.set_index('키위번호')
+# print_step(1, 'Load Excel file with ' + str(len(df_excel)) + ' patents')
+
+# print(df_excel.columns)     # 컬럼 구성 확인
+# print(df_excel.head(1))
+
+# df_kor = df_excel[df_excel['발행국'].isin(['KIPO', 'JPO', 'KR', 'JP'])]
+# df_eng = pd.DataFrame(df_excel[df_excel['발행국'].isin(['USPTO', 'EPO', 'CNIPA', 'US', 'EP', 'CN'])])
+# print_step(2, 'Split Excel file with Language')
+
+# 분석 범위 한정
+# nat = 'US'
+# df_eng = df_eng[df_eng['발행국'].isin(['USPTO', 'US'])]
+
+# lemmatizer = WordNetLemmatizer()
+# stemmer = SnowballStemmer('english')
+# stop_pos_list = stop_pos(1)  # 1~3으로 입력해서 사용하자, 1은 전치사 등 최소 제거, 2는 부사형 제거, 3은 동사형 제거까지
+#
+# if '발명의명칭' in df_eng.columns:
+#     title = df_eng['발명의명칭']
+#     df_eng['title_token'] = df_eng['발명의명칭'].apply(lambda x: word_tokenize(x))
+#     df_eng['title_pos'] = df_eng['title_token'].apply(lambda x: pos_tag(x))
+#     df_eng['title_lemma'] = df_eng['title_pos'].apply(
+#         lambda x: [lemmatizer.lemmatize(word[0].lower(), get_wordnet_pos(word[1]))
+#                    for word in x
+#                    # if word[1] not in stop_pos_list
+#                    ]
+#     )
+#     df_eng['title_stem'] = df_eng['title_lemma'].apply(
+#         lambda x: [stemmer.stem(word) for word in x]
+#     )
+#
+# print_step(3, 'Language preprocess done(Lemmatize, POS-TAG & Stem)')
+# print(df_eng[['발명의명칭', 'title_token', 'title_pos', 'title_lemma', 'title_stem']].head(2))
+
+# 문자열 변화 비교
