@@ -12,24 +12,31 @@ import re
 import os
 # nltk.download('wordnet')
 from PIL import Image
+from colorama import Style, Fore
 
 
 # https://igor.mp/blog/2019/12/31/tfidf-python.html 참고
 
-starting_time = time.time()
-set_pandas_display_options()
 
+starting_time = time.time()
+
+
+def print_step(index, desc):
+    print(f'{step_color}Step ' + str(index) + '.(' + str(proc_time(starting_time)) + ') ' + desc + f'.{Style.RESET_ALL}')
+
+
+set_pandas_display_options()
+step_color = Fore.RED
 df_excel = pd.read_excel('IOT_1029_1.xlsx')
 df_excel = df_excel.set_index('키위번호')
-print(proc_time(starting_time), ' 1. Load Excel file with', len(df_excel), 'patents')  # Success to load Excel file with 17094 patents
+print_step(1, 'Load Excel file with ' + str(len(df_excel)) + ' patents')
 
-print(df_excel.columns)     # 컬럼 구성 확인
+# print(df_excel.columns)     # 컬럼 구성 확인
 print(df_excel.head(1))
 
 df_kor = df_excel[df_excel['발행국'].isin(['KIPO', 'JPO', 'KR', 'JP'])]
-print(proc_time(starting_time), ' 2. Identify KR, JP', len(df_kor), 'patents')
 df_eng = pd.DataFrame(df_excel[df_excel['발행국'].isin(['USPTO', 'EPO', 'CNIPA', 'US', 'EP', 'CN'])])
-print(proc_time(starting_time), ' 3. Identify US, EP, CN', len(df_eng), 'patents')
+print_step(2, 'Split Excel file with Language')
 
 # 분석 범위 한정
 nat = 'US'
@@ -52,7 +59,9 @@ if '발명의명칭' in df_eng.columns:
     df_eng['title_stem'] = df_eng['title_lemma'].apply(
         lambda x: [stemmer.stem(word) for word in x]
     )
-    print(df_eng[['발명의명칭', 'title_token', 'title_pos', 'title_lemma', 'title_stem']].head())
+
+print_step(3, 'Language preprocess done(Lemmatize, POS-TAG & Stem)')
+print(df_eng[['발명의명칭', 'title_token', 'title_pos', 'title_lemma', 'title_stem']].head(2))
 
 # 문자열 변화 비교
 """ 
@@ -109,35 +118,60 @@ df_dict = {}
 idf_dict = {}
 
 # docs = df_eng['title_stem'].head().tolist()
-docs = df_eng['title_lemma'].tolist()
-doc_cnt = len(docs)
+title_list = df_eng['title_lemma'].tolist()
+doc_cnt = len(title_list)
+
 
 # print(docs)
-for doc in docs:
-    # print(doc, set(doc))
-    for word in set(doc):
-        # print(word, sum([1 for w in doc if w == word]))
-        if word in tf_dict.keys():
-            tf_dict[word] += sum([1 for w in doc if w == word])
-            df_dict[word] += 1
-        else:
-            tf_dict[word] = sum([1 for w in doc if w == word])
-            df_dict[word] = 1
+def tf_idf(docs):
+    for doc in docs:
+        # print(doc, set(doc))
+        for word in set(doc):
+            # print(word, sum([1 for w in doc if w == word]))
+            if word in tf_dict.keys():
+                tf_dict[word] += sum([1 for w in doc if w == word])
+                df_dict[word] += 1
+            else:
+                tf_dict[word] = sum([1 for w in doc if w == word])
+                df_dict[word] = 1
 
-for word in df_dict.keys():
-    idf_dict[word] = np.log(doc_cnt / (df_dict[word] + 1))
+    for word in df_dict.keys():
+        idf_dict[word] = np.log(doc_cnt / (df_dict[word] + 1))
 
-# print('tf_dict: ', tf_dict)
-# print('df_dict: ', df_dict)
-print('idf_dict: ', idf_dict)
-# idf_df = pd.DataFrame.from_dict(data=idf_dict, orient=idf_dict.keys())
-idf_df = pd.Series(idf_dict).to_frame()
-print(idf_df.sort_values(by=0, ascending=True).head(10))
-print(idf_df.sort_values(by=0, ascending=False).head(10))
+    return tf_dict, df_dict, idf_dict
 
-# mask_im = np.array(Image.open('mask.png'))
-# wc = WordCloud(max_font_size=150, stopwords=stopwords.words("english"), mask=mask_im, background_color='white',
-#                max_words=int(1000), random_state=42, width=1024, height=768)
-#
-# wc = wc.generate_from_frequencies(idf_dict)
-# wc.to_file(os.path.join('img', "word_cloud_lemma_idf.png"))
+
+term_freq, doc_freq, inverse_df = tf_idf(title_list)
+
+print_step(4, 'Calculate TF & IDF')
+sample_word = 'mobile'
+print('Smple Word: ', sample_word, ', term_freq: ', term_freq[sample_word],
+      ', doc_freq: ', doc_freq[sample_word], ', inverse_df: ', inverse_df[sample_word])
+
+tf_idf_df = pd.DataFrame({'term_freq': pd.Series(term_freq),
+                          'doc_freq': pd.Series(doc_freq),
+                          'idf': pd.Series(idf_dict)})
+tf_idf_df['idf_rank'] = tf_idf_df['idf'].rank()
+print_step(5, 'Calculate IDF Rank')
+print(tf_idf_df.sort_values(by='idf', ascending=True).head(3))
+
+
+def draw_cloud(data, idf_rank=0):
+    # print(data.describe())
+    if idf_rank > 0:
+        word_cloud_df = data[data['idf_rank'] >= idf_rank]
+        word_cloud_dict = word_cloud_df['term_freq'].to_dict()
+        # print(word_cloud_dict)
+
+        mask_im = np.array(Image.open('mask1.png'))
+        wc = WordCloud(max_font_size=150, stopwords=stopwords.words("english"), mask=mask_im, background_color='white',
+                       max_words=int(1000), random_state=42, width=1024, height=768)
+
+        wc = wc.generate_from_frequencies(word_cloud_dict)
+        wc.to_file(os.path.join('img', 'word_cloud_idf_rank under'+str(idf_rank)+'.png'))
+
+
+# for i in range(0, 101, 10):
+#     draw_cloud(data=tf_idf_df, idf_rank=i)
+draw_cloud(data=tf_idf_df, idf_rank=0)
+print_step(6, 'Finished to save Wordcloud')

@@ -219,7 +219,7 @@ def stop_pos(level=3):
 
 
 def proc_time(starting_time):
-    return str(round(time.time() - starting_time, 1)) + ' sec : '
+    return str(round(time.time() - starting_time, 1)) + 'sec'
 
 
 def set_pandas_display_options() -> None:
