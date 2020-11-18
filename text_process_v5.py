@@ -94,18 +94,36 @@ def tf_idf(docs):
     return tf_dict, df_dict, idf_dict
 
 
-def draw_cloud(data):
-    # print(data.describe())
-    # word_cloud_df = data[data['idf_rank'] >= idf_rank]
-    word_cloud_df = data
-    word_cloud_dict = word_cloud_df['term_freq'].to_dict()
-    # print(word_cloud_dict)
+def get_major_pos(docs):
+    # major_pos = {}
+    w_list = []
+    p_list = []
+    for sen in docs:
+        for word in sen:
+            w_list.append(word[0])
+            p_list.append(word[1])
+    wnp_df = pd.DataFrame({'w': np.array(w_list), 'p': np.array(p_list)})
+    wnp_df['cnt'] = 1
+    wnp_df1 = wnp_df.groupby(['w', 'p']).sum().reset_index()
+    print(wnp_df1.head(3))
+    wnp_df1['row_num'] = wnp_df1.sort_values(['w', 'cnt'], ascending=[True, False]).groupby(['w']).cumcount() + 1
+    # print(wnp_df1.head(30))
+    # print(wnp_df2[wnp_df2['w'] == 'a'])
+    wnp_df1 = wnp_df1[wnp_df1['row_num'] == 1]
+    wnp_df1 = wnp_df1.set_index('w')
+    wnp_df1 = wnp_df1[['p']]
+    print(wnp_df1.head(3))
+    result = wnp_df1.to_dict('series')['p']
+    print(result)
+    return result
 
+
+def draw_cloud(data):
     mask_im = np.array(Image.open('mask1.png'))
     wc = WordCloud(max_font_size=150, stopwords=stopwords.words("english"), mask=mask_im, background_color='white',
                    max_words=int(1000), random_state=42, width=1024, height=768)
 
-    wc = wc.generate_from_frequencies(word_cloud_dict)
+    wc = wc.generate_from_frequencies(data)
     # wc.to_file(os.path.join('img', 'word_cloud_idf_rank under'+str(idf_rank)+'.png'))
     return wc
 
@@ -125,6 +143,7 @@ else:
     # title_list = df_eng['title_lemma'].tolist()
     doc_cnt = len(df_eng['title_lemma'].tolist())
     term_freq, doc_freq, inverse_df = tf_idf(df_eng['title_lemma'].tolist())
+    major_pos = get_major_pos(df_eng['title_lemma1'].tolist())
     sample_word = 'mobile'
     print('Sample Word: [', sample_word, '], term_freq: ', term_freq[sample_word],
           ', doc_freq: ', doc_freq[sample_word], ', inverse_df: ', inverse_df[sample_word])
@@ -132,11 +151,38 @@ else:
 
     tf_idf_df = pd.DataFrame({'term_freq': pd.Series(term_freq),
                               'doc_freq': pd.Series(doc_freq),
-                              'idf': pd.Series(inverse_df)})
+                              'idf': pd.Series(inverse_df),
+                              'major_pos': pd.Series(major_pos)})
     tf_idf_df['idf_rank'] = tf_idf_df['idf'].rank()
     print_step(3, 'Calculate IDF Rank')
     print(tf_idf_df.sort_values(by='idf', ascending=True).head(3))
 
+    # 조건 필터: idf 순위, pos tag
+    stop_pos_list = stop_pos(3)  # 1~3으로 입력해서 사용하자, 1은 전치사 등 최소 제거, 2는 부사형 제거, 3은 동사형 제거까지
+    # print(stop_pos_list)
+    idf_rank = 200
+    print(idf_rank)
+    data = tf_idf_df[tf_idf_df['idf_rank'] >= idf_rank]
+    # print(data.head(10))
+    pass_tag = list(set(tagger.tagdict.values()).difference(stop_pos_list))
+    data = data[data['major_pos'].isin(pass_tag)]
+    print(data.head(10))
+    # if word[1] not in stop_pos_list
+    data = data['term_freq'].to_dict()
+    # print(word_cloud_dict)
+
+    # 워드 클라우드 생성
+    img = draw_cloud(data=data)
+    size_x, size_y = 9, 6
+    plt.figure(figsize=(size_x, size_y))  # 단위 : 인치
+    plt.imshow(img)
+    plt.tight_layout(pad=0)
+    plt.axis('off')
+    plt.show(block=False)
+    plt.pause(3)
+    plt.close()
+
+    # idf 변화에 따른 워드클라우드
     # # idf_rank = 0
     # for idf_rank in range(0, 101, 10):
     #     img = draw_cloud(data=tf_idf_df[tf_idf_df['idf_rank'] >= idf_rank])

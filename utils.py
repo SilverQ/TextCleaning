@@ -214,11 +214,12 @@ def stop_pos(level=3):
         None
     '''
     if level == 1:
-        stop_pos = ['CC', 'DT', 'IN', 'TO', ',', '$', ""''"", '(', ')', '--', '.', ':']
+        stop_pos = ["''", 'CC', 'DT', 'IN', 'TO', ',', '$', ""''"", '(', ')', '--', '.', ':']
     elif level == 2:
-        stop_pos = ['CC', 'DT', 'IN', 'TO', ',', '$', ""''"", '(', ')', '--', '.', ':', 'CD', 'EX', 'JJ', 'JJR', 'JJS', 'LS', 'MD', 'PDT', 'POS', 'PRP', 'PRP$', 'RB', 'RBR', 'RBS', 'UH']
+        stop_pos = ["''", 'CC', 'DT', 'IN', 'TO', ',', '$', ""''"", '(', ')', '--', '.', ':', 'CD', 'EX', 'JJ', 'JJR', 'JJS', 'LS', 'MD', 'PDT', 'POS', 'PRP', 'PRP$', 'RB', 'RBR', 'RBS', 'UH']
     else:
-        stop_pos = ['CC', 'DT', 'IN', 'TO', ',', '$', ""''"", '(', ')', '--', '.', ':', 'CD', 'EX', 'JJ', 'JJR', 'JJS', 'LS', 'MD', 'PDT', 'POS', 'PRP', 'PRP$', 'RB', 'RBR', 'RBS', 'UH', 'VB', 'VBD', 'VBG', 'VBN', 'VBP', 'VBZ', 'WDT', 'WP', 'WP$', 'WRB']
+        stop_pos = ["''", 'CC', 'DT', 'IN', 'TO', ',', '$', ""''"", '(', ')', '--', '.', ':', 'CD', 'EX', 'JJ', 'JJR', 'JJS', 'LS', 'MD', 'PDT', 'POS', 'PRP', 'PRP$', 'RB', 'RBR', 'RBS', 'UH', 'VB', 'VBD', 'VBG', 'VBN', 'VBP', 'VBZ', 'WDT', 'WP', 'WP$', 'WRB']
+    pass_pos = ['$', "''", '(']
     return stop_pos
 
 
