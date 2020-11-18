@@ -1,7 +1,9 @@
 from utils import *
+import sys
 from nltk.tokenize import word_tokenize
 from nltk.stem import SnowballStemmer, WordNetLemmatizer
 from nltk.tag import pos_tag
+from nltk.tag.perceptron import PerceptronTagger
 from wordcloud import WordCloud
 import pandas as pd
 import numpy as np
@@ -16,6 +18,10 @@ from PIL import Image
 # https://igor.mp/blog/2019/12/31/tfidf-python.html 참고
 
 set_pandas_display_options()
+lemmatizer = WordNetLemmatizer()
+stemmer = SnowballStemmer('english')
+# tagger = pos_tag()
+tagger = PerceptronTagger()
 
 
 def load_file(fname):
@@ -30,20 +36,26 @@ def load_file(fname):
         print_step(1-1, 'Load Excel file with ' + str(len(df_excel)) + ' patents')
         df_kor = df_excel[df_excel['발행국'].isin(['KIPO', 'JPO', 'KR', 'JP'])]
         df_eng = pd.DataFrame(df_excel[df_excel['발행국'].isin(['USPTO', 'EPO', 'CNIPA', 'US', 'EP', 'CN'])])
-        print_step(1-2, 'Split Excel file with Language')
+        print_step('1-2', 'Split Excel file with Language')
         # 분석 범위 한정
         nat = 'US'
         df_eng = df_eng[df_eng['발행국'].isin(['USPTO', 'US'])]
-        lemmatizer = WordNetLemmatizer()
-        stemmer = SnowballStemmer('english')
         stop_pos_list = stop_pos(1)  # 1~3으로 입력해서 사용하자, 1은 전치사 등 최소 제거, 2는 부사형 제거, 3은 동사형 제거까지
 
         if '발명의명칭' in df_eng.columns:
             title = df_eng['발명의명칭']
             df_eng['title_token'] = df_eng['발명의명칭'].apply(lambda x: word_tokenize(x))
-            df_eng['title_pos'] = df_eng['title_token'].apply(lambda x: pos_tag(x))
+            # df_eng['title_pos'] = df_eng['title_token'].apply(lambda x: pos_tag(x))
+            df_eng['title_pos'] = df_eng['title_token'].apply(lambda x: tagger.tag(x))
             df_eng['title_lemma'] = df_eng['title_pos'].apply(
                 lambda x: [lemmatizer.lemmatize(word[0].lower(), get_wordnet_pos(word[1]))
+                           for word in x
+                           # if word[1] not in stop_pos_list
+                           ]
+            )
+            df_eng['title_lemma1'] = df_eng['title_pos'].apply(
+                lambda x: [(lemmatizer.lemmatize(word[0].lower(), get_wordnet_pos(word[1])),
+                            word[1])
                            for word in x
                            # if word[1] not in stop_pos_list
                            ]
@@ -51,8 +63,11 @@ def load_file(fname):
             df_eng['title_stem'] = df_eng['title_lemma'].apply(
                 lambda x: [stemmer.stem(word) for word in x]
             )
+            df_eng['title_stem1'] = df_eng['title_lemma1'].apply(
+                lambda x: [(stemmer.stem(word[0]), word[1]) for word in x]
+            )
 
-        print_step(1-3, 'Language preprocess done(Lemmatize, POS-TAG & Stem)')
+        print_step('1-3', 'Language preprocess done(Lemmatize, POS-TAG & Stem)')
         print(df_eng[['발명의명칭', 'title_token', 'title_pos', 'title_lemma', 'title_stem']].head(2))
         df_eng.to_pickle(fname[:-5]+'.pickle')
         return df_eng
@@ -79,45 +94,179 @@ def tf_idf(docs):
     return tf_dict, df_dict, idf_dict
 
 
-def draw_cloud(data, idf_rank=0):
+def draw_cloud(data):
     # print(data.describe())
-    if idf_rank > 0:
-        word_cloud_df = data[data['idf_rank'] >= idf_rank]
-        word_cloud_dict = word_cloud_df['term_freq'].to_dict()
-        # print(word_cloud_dict)
+    # word_cloud_df = data[data['idf_rank'] >= idf_rank]
+    word_cloud_df = data
+    word_cloud_dict = word_cloud_df['term_freq'].to_dict()
+    # print(word_cloud_dict)
 
-        mask_im = np.array(Image.open('mask1.png'))
-        wc = WordCloud(max_font_size=150, stopwords=stopwords.words("english"), mask=mask_im, background_color='white',
-                       max_words=int(1000), random_state=42, width=1024, height=768)
+    mask_im = np.array(Image.open('mask1.png'))
+    wc = WordCloud(max_font_size=150, stopwords=stopwords.words("english"), mask=mask_im, background_color='white',
+                   max_words=int(1000), random_state=42, width=1024, height=768)
 
-        wc = wc.generate_from_frequencies(word_cloud_dict)
-        wc.to_file(os.path.join('img', 'word_cloud_idf_rank under'+str(idf_rank)+'.png'))
+    wc = wc.generate_from_frequencies(word_cloud_dict)
+    # wc.to_file(os.path.join('img', 'word_cloud_idf_rank under'+str(idf_rank)+'.png'))
+    return wc
 
 
 # 1단계: 파일 입력(xlsx만 입력 가능)
-f_name = input('사용할 파일의 명칭을 입력하세요\n파일명: ')
-print('입력한 파일 명은 ', f_name[:-5], ', 확장자는 ', f_name[-4:], '입니다.')
-df_eng = load_file(f_name)
+# f_name = input('사용할 파일의 명칭을 입력하세요\n파일명: ')
+f_name = sys.argv[-1]   # .py 실행 시 argument 입력
+print(f_name)
+if len(f_name) == 0:
+    print('No file name')
+else:
+    print('입력한 파일 명은 ', f_name[:-5], ', 확장자는 ', f_name[-4:], '입니다.')
+    df_eng = load_file(f_name)
+    print(df_eng.head(3))
 
-# 2단계: term frequency 산출
-# title_list = df_eng['title_lemma'].tolist()
-doc_cnt = len(df_eng['title_lemma'].tolist())
-term_freq, doc_freq, inverse_df = tf_idf(df_eng['title_lemma'].tolist())
-print_step(2, 'Calculate TF & IDF')
+    # 2단계: term frequency 산출
+    # title_list = df_eng['title_lemma'].tolist()
+    doc_cnt = len(df_eng['title_lemma'].tolist())
+    term_freq, doc_freq, inverse_df = tf_idf(df_eng['title_lemma'].tolist())
+    sample_word = 'mobile'
+    print('Sample Word: [', sample_word, '], term_freq: ', term_freq[sample_word],
+          ', doc_freq: ', doc_freq[sample_word], ', inverse_df: ', inverse_df[sample_word])
+    print_step(2, 'Calculate TF & IDF')
 
-sample_word = 'mobile'
-print('Sample Word: [', sample_word, '], term_freq: ', term_freq[sample_word],
-      ', doc_freq: ', doc_freq[sample_word], ', inverse_df: ', inverse_df[sample_word])
+    tf_idf_df = pd.DataFrame({'term_freq': pd.Series(term_freq),
+                              'doc_freq': pd.Series(doc_freq),
+                              'idf': pd.Series(inverse_df)})
+    tf_idf_df['idf_rank'] = tf_idf_df['idf'].rank()
+    print_step(3, 'Calculate IDF Rank')
+    print(tf_idf_df.sort_values(by='idf', ascending=True).head(3))
 
-tf_idf_df = pd.DataFrame({'term_freq': pd.Series(term_freq),
-                          'doc_freq': pd.Series(doc_freq),
-                          'idf': pd.Series(inverse_df)})
-tf_idf_df['idf_rank'] = tf_idf_df['idf'].rank()
-print_step(3, 'Calculate IDF Rank')
-print(tf_idf_df.sort_values(by='idf', ascending=True).head(3))
+    # # idf_rank = 0
+    # for idf_rank in range(0, 101, 10):
+    #     img = draw_cloud(data=tf_idf_df[tf_idf_df['idf_rank'] >= idf_rank])
+    #     # wc.to_file(os.path.join('img', 'word_cloud_idf_rank under'+str(idf_rank)+'.png'))
+    #     size_x, size_y = 9, 6
+    #     plt.figure(figsize=(size_x, size_y))  # 단위 : 인치
+    #     plt.imshow(img)
+    #     plt.tight_layout(pad=0)
+    #     plt.axis('off')
+    #     plt.show(block=False)
+    #     plt.pause(3)
+    #     plt.close()
+    # print_step(4, 'Finished to save Wordcloud')
 
-draw_cloud(data=tf_idf_df, idf_rank=5)
-print_step(4, 'Finished to save Wordcloud')
+
+def examine_counts():
+    df_pos = df_eng['title_pos']
+    print(df_pos.head(2))
+    wordnpos = df_eng['title_pos'].tolist()
+    print(wordnpos[0][:4])
+    w_list = []
+    p_list = []
+    for sen in wordnpos:
+        for wnp in sen:
+            word = lemmatizer.lemmatize(wnp[0].lower(), get_wordnet_pos(wnp[1]))
+            w_list.append(word)
+            p_list.append(wnp[1])
+    wnp_df = pd.DataFrame({'w': np.array(w_list)
+                           , 'p': np.array(p_list)
+                           # , 'cnt': pd.Series(1, dtype='int32')
+                           })
+    wnp_df['cnt'] = 1
+    print(wnp_df.head(3))
+    wnp_df1 = pd.DataFrame(wnp_df.groupby(['w', 'p']).sum())
+    print(wnp_df1.head(3))
+    # wnp_df2 = pd.DataFrame(wnp_df1.groupby([pd.Grouper(level='w')]).sum())
+    wnp_df2 = pd.DataFrame(wnp_df1.groupby(['w'], as_index=True).sum()).reset_index()
+    """
+    두 문법의 차이를 이해하자. pd.Grouper를 사용하면 그룹화에 사용한 컬럼이 index가 되며 aggregate되며,
+    이 방법은 as_index=True와 동일하다.
+    as_index=False로 놓고 하면 기존 index를 가져온다.
+    wnp_df2 = pd.DataFrame(wnp_df1.groupby([pd.Grouper(level='w')]).sum())
+             cnt
+    w           
+    and     5878
+    for     4388
+    system  3932
+    # wnp_df2 = pd.DataFrame(wnp_df1.groupby(['w'], as_index=False).sum())
+           cnt
+    250   5878
+    1924  4388
+    4656  3932
+    wnp_df2 = pd.DataFrame(wnp_df1.groupby(['w'], as_index=True).sum())
+             cnt
+    w           
+    and     5878
+    for     4388
+    system  3932
+    """
+    print(wnp_df2.sort_values(by='cnt', ascending=False).head(3))
+    # print(wnp_df[wnp_df['w'] == 'a'])
+    # print(wnp_df1[wnp_df1['w'] == 'a'])
+    print(wnp_df2[wnp_df2['w'] == 'a'])
+    # print(wnp_df2['a'])
+
+
+# examine_counts()
+
+"""
+단어가 어떻게 사용되는지에 따라 다양한 품사로 출현할텐데, 제거하려는 품사는 tf 카운트에서 제외
+             w    p  cnt
+0  interactive  NNP    1
+1           id  NNP    1
+2       system   NN    1
+3          use  VBG    1
+4       mobile   JJ    1
+                 w    p  cnt
+0                &   CC    5
+1               ''   ''    5
+2               's  POS   16
+3                (    (  513
+4                )    )  513
+...            ...  ...  ...
+8416  —transparent   NN    1
+8417             “   JJ   23
+8418             “  NNP    2
+8419             ”   NN   18
+8420             ”  NNP    7
+[8421 rows x 3 columns]
+
+                          w  p  cnt
+1052                control  9    9
+2974                monitor  8    8
+251                  and/or  8    8
+3183                   node  8    8
+4682                 target  7    7
+...                     ... ..  ...
+2232  iconology/markerology  1    1
+2233                     id  1    1
+2234                    ide  1    1
+2240    identifier-equipped  1    1
+2635                  li-fi  1    1
+[5270 rows x 3 columns]
+
+            w    p  cnt
+1703  control   JJ    1
+1704  control   NN  308
+1705  control  NNP  248
+1706  control  NNS   11
+1707  control   VB   23
+1708  control  VBD    3
+1709  control  VBG  102
+1710  control  VBN    3
+1711  control  VBP    1
+
+    w    p   cnt
+36  a   DT  1652
+37  a   IN    47
+38  a  NNP   549
+39  a   VB     1
+
+a가 nnp로 발생하는건 어떤 경우일까? pos-tag 오류일까?
+a가 vb로 발생한건 1번, proper noun(NNP, 고유명사)로 549번인데, 이러면 idf 순위가 엄청 높아질듯
+같이 제거하는게 바람직할까?
+
+    w  p  cnt
+35  a  4    4
+"""
+
+# print(df_eng[df_eng['title_pos'].isin(['a', 'NNP'])])
 
 # for i in range(0, 101, 10):
 #     draw_cloud(data=tf_idf_df, idf_rank=i)
