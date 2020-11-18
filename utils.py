@@ -213,14 +213,18 @@ def stop_pos(level=3):
             ` ``
         None
     '''
-    if level == 1:
-        stop_pos = ["''", 'CC', 'DT', 'IN', 'TO', ',', '$', ""''"", '(', ')', '--', '.', ':']
-    elif level == 2:
-        stop_pos = ["''", 'CC', 'DT', 'IN', 'TO', ',', '$', ""''"", '(', ')', '--', '.', ':', 'CD', 'EX', 'JJ', 'JJR', 'JJS', 'LS', 'MD', 'PDT', 'POS', 'PRP', 'PRP$', 'RB', 'RBR', 'RBS', 'UH']
+    stop_pos_lv1 = ["``", "''", 'CC', 'DT', 'IN', 'TO', ',', '$', ""''"", '(', ')', '--', '.', ':']
+    stop_pos_lv2 = stop_pos_lv1 + ['CD', 'EX', 'JJ', 'JJR', 'JJS', 'LS',
+                                        'MD', 'PDT', 'POS', 'PRP', 'PRP$', 'RB', 'RBR', 'RBS', 'UH']
+    stop_pos_lv3 = stop_pos_lv1 + ['CD', 'EX', 'JJ', 'JJR', 'JJS', 'LS',
+                                   'MD', 'PDT', 'POS', 'PRP', 'PRP$', 'RB', 'RBR', 'RBS', 'UH',
+                                   'VB', 'VBD', 'VBG', 'VBN', 'VBP', 'VBZ', 'WDT', 'WP', 'WP$', 'WRB']
+    if level == 2:
+        return stop_pos_lv2
+    elif level == 3:
+        return stop_pos_lv3
     else:
-        stop_pos = ["''", 'CC', 'DT', 'IN', 'TO', ',', '$', ""''"", '(', ')', '--', '.', ':', 'CD', 'EX', 'JJ', 'JJR', 'JJS', 'LS', 'MD', 'PDT', 'POS', 'PRP', 'PRP$', 'RB', 'RBR', 'RBS', 'UH', 'VB', 'VBD', 'VBG', 'VBN', 'VBP', 'VBZ', 'WDT', 'WP', 'WP$', 'WRB']
-    pass_pos = ['$', "''", '(']
-    return stop_pos
+        return stop_pos_lv1
 
 
 def proc_time(starting_time):
@@ -273,15 +277,6 @@ def escape_string(raw):
 def execute(cur, query):
     cur.execute(query)
     return cur.fetchall()
-
-
-def conn_string():
-    conn_string = "dbname={dbname} user={user} host={host} password={password} port={port}".format(dbname='db_ipc',
-                                                                                                   user='scorpion',
-                                                                                                   host='pgdb05.nips.local',
-                                                                                                   password='scorpion',
-                                                                                                   port=5432)
-    return conn_string
 
 
 # if file_type == 'DB':

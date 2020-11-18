@@ -9,6 +9,7 @@ import pandas as pd
 import numpy as np
 import os
 from PIL import Image
+# import seaborn as sns
 # from text_utils import *
 # import nltk
 # import re
@@ -158,22 +159,31 @@ else:
     print(tf_idf_df.sort_values(by='idf', ascending=True).head(3))
 
     # 조건 필터: idf 순위, pos tag
-    stop_pos_list = stop_pos(3)  # 1~3으로 입력해서 사용하자, 1은 전치사 등 최소 제거, 2는 부사형 제거, 3은 동사형 제거까지
-    # print(stop_pos_list)
-    idf_rank = 200
+    stop_pos_list = stop_pos(1)  # 1~3으로 입력해서 사용하자, 1은 전치사 등 최소 제거, 2는 부사형 제거, 3은 동사형 제거까지
+    print('stop_pos_list: ', stop_pos_list)
+    idf_rank = 0
     print(idf_rank)
     data = tf_idf_df[tf_idf_df['idf_rank'] >= idf_rank]
     # print(data.head(10))
     pass_tag = list(set(tagger.tagdict.values()).difference(stop_pos_list))
     data = data[data['major_pos'].isin(pass_tag)]
     print(data.head(10))
+
+    size_x, size_y = 9, 6
+    plt.figure(figsize=(size_x, size_y))  # 단위 : 인치
+
+    plt.hist(data['idf'])
+    plt.show(block=False)
+    plt.pause(1)
+    plt.close()
+
+    data.to_csv('cleaned_text.csv')
     # if word[1] not in stop_pos_list
     data = data['term_freq'].to_dict()
     # print(word_cloud_dict)
 
     # 워드 클라우드 생성
     img = draw_cloud(data=data)
-    size_x, size_y = 9, 6
     plt.figure(figsize=(size_x, size_y))  # 단위 : 인치
     plt.imshow(img)
     plt.tight_layout(pad=0)
