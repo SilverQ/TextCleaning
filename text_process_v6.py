@@ -33,14 +33,14 @@ def load_file(fname):
         return df_eng
     elif fname[-4:] == 'xlsx':
         df_excel = pd.read_excel(fname)
-        df_excel = df_excel.set_index('키위번호')
+        df_excel = df_excel.set_index('Publication Number-발행번호')
         print_step(1-1, 'Load Excel file with ' + str(len(df_excel)) + ' patents')
         df_kor = df_excel[df_excel['발행국'].isin(['KIPO', 'JPO', 'KR', 'JP'])]
         df_eng = pd.DataFrame(df_excel[df_excel['발행국'].isin(['USPTO', 'EPO', 'CNIPA', 'US', 'EP', 'CN'])])
         print_step('1-2', 'Split Excel file with Language')
         # 분석 범위 한정
         nat = 'US'
-        df_eng = df_eng[df_eng['발행국'].isin(['USPTO', 'US'])]
+        # df_eng = df_eng[df_eng['발행국'].isin(['USPTO', 'US'])]
         stop_pos_list = stop_pos(1)  # 1~3으로 입력해서 사용하자, 1은 전치사 등 최소 제거, 2는 부사형 제거, 3은 동사형 제거까지
 
         if '발명의명칭' in df_eng.columns:
@@ -106,23 +106,23 @@ def get_major_pos(docs):
     wnp_df = pd.DataFrame({'w': np.array(w_list), 'p': np.array(p_list)})
     wnp_df['cnt'] = 1
     wnp_df1 = wnp_df.groupby(['w', 'p']).sum().reset_index()
-    print(wnp_df1.head(3))
+    # print(wnp_df1.head(3))
     wnp_df1['row_num'] = wnp_df1.sort_values(['w', 'cnt'], ascending=[True, False]).groupby(['w']).cumcount() + 1
     # print(wnp_df1.head(30))
     # print(wnp_df2[wnp_df2['w'] == 'a'])
     wnp_df1 = wnp_df1[wnp_df1['row_num'] == 1]
     wnp_df1 = wnp_df1.set_index('w')
     wnp_df1 = wnp_df1[['p']]
-    print(wnp_df1.head(3))
+    # print(wnp_df1.head(3))
     result = wnp_df1.to_dict('series')['p']
-    print(result)
+    # print(result)
     return result
 
 
 def draw_cloud(data):
     mask_im = np.array(Image.open('mask1.png'))
     wc = WordCloud(max_font_size=150, stopwords=stopwords.words("english"), mask=mask_im, background_color='white',
-                   max_words=int(1000), random_state=42, width=640, height=480)
+                   max_words=int(1000), random_state=42, width=1600, height=960)
 
     wc = wc.generate_from_frequencies(data)
     # wc.to_file(os.path.join('img', 'word_cloud_idf_rank under'+str(idf_rank)+'.png'))
@@ -145,10 +145,10 @@ else:
     doc_cnt = len(df_eng['title_lemma'].tolist())
     term_freq, doc_freq, inverse_df = tf_idf(df_eng['title_lemma'].tolist())
     major_pos = get_major_pos(df_eng['title_lemma1'].tolist())
-    sample_word = 'mobile'
-    print('Sample Word: [', sample_word, '], term_freq: ', term_freq[sample_word],
-          ', doc_freq: ', doc_freq[sample_word], ', inverse_df: ', inverse_df[sample_word])
     print_step(2, 'Calculate TF & IDF')
+    # sample_word = 'mobile'
+    # print('Sample Word: [', sample_word, '], term_freq: ', term_freq[sample_word],
+    #       ', doc_freq: ', doc_freq[sample_word], ', inverse_df: ', inverse_df[sample_word])
 
     tf_idf_df = pd.DataFrame({'term_freq': pd.Series(term_freq),
                               'doc_freq': pd.Series(doc_freq),
@@ -161,37 +161,97 @@ else:
     # 조건 필터: idf 순위, pos tag
     stop_pos_list = stop_pos(3)  # 1~3으로 입력해서 사용하자, 1은 전치사 등 최소 제거, 2는 부사형 제거, 3은 동사형 제거까지
     print('stop_pos_list: ', stop_pos_list)
-    idf_rank = 100
-    print(idf_rank)
+    idf_rank = 10
+    # print(idf_rank)
     data = tf_idf_df[tf_idf_df['idf_rank'] >= idf_rank]
-    # print(data.head(10))
+    # data_us = df_eng['title_lemma']
+    data_us = pd.DataFrame(df_eng[df_eng['발행국'].isin(['USPTO', 'US'])])
+    data_ep = pd.DataFrame(df_eng[df_eng['발행국'].isin(['EPO', 'EP'])])
+    data_cn = pd.DataFrame(df_eng[df_eng['발행국'].isin(['CNIPA', 'CN'])])
+    # 출원년구간(10年), 00~09年, 10~20年
+    title_us = data_us['title_lemma'].tolist()
+    title_ep = data_ep['title_lemma'].tolist()
+    title_cn = data_cn['title_lemma'].tolist()
+    us_term_freq, us_doc_freq, us_inverse_df = tf_idf(title_us)
+    ep_term_freq, ep_doc_freq, ep_inverse_df = tf_idf(title_ep)
+    cn_term_freq, cn_doc_freq, cn_inverse_df = tf_idf(title_cn)
+    major_pos_us = get_major_pos(data_us['title_lemma1'].tolist())
+    major_pos_ep = get_major_pos(data_ep['title_lemma1'].tolist())
+    major_pos_cn = get_major_pos(data_cn['title_lemma1'].tolist())
+    tf_idf_df_us = pd.DataFrame({'term_freq': pd.Series(us_term_freq),
+                                 'doc_freq': pd.Series(us_doc_freq),
+                                 'idf': pd.Series(us_inverse_df),
+                                 'major_pos': pd.Series(major_pos_us)})
+    tf_idf_df_ep = pd.DataFrame({'term_freq': pd.Series(ep_term_freq),
+                                 'doc_freq': pd.Series(ep_doc_freq),
+                                 'idf': pd.Series(ep_inverse_df),
+                                 'major_pos': pd.Series(major_pos_ep)})
+    tf_idf_df_cn = pd.DataFrame({'term_freq': pd.Series(cn_term_freq),
+                                 'doc_freq': pd.Series(cn_doc_freq),
+                                 'idf': pd.Series(cn_inverse_df),
+                                 'major_pos': pd.Series(major_pos_cn)})
+
+    tf_idf_df['idf_rank'] = tf_idf_df['idf'].rank()
+
     pass_tag = list(set(tagger.tagdict.values()).difference(stop_pos_list))
+
     data = data[data['major_pos'].isin(pass_tag)]
-    print(data.head(10))
+    data_us = tf_idf_df_us[tf_idf_df_us['major_pos'].isin(pass_tag)]
+    data_ep = tf_idf_df_ep[tf_idf_df_ep['major_pos'].isin(pass_tag)]
+    data_cn = tf_idf_df_cn[tf_idf_df_cn['major_pos'].isin(pass_tag)]
+    print_step(4, 'Filter with POS Tag')
+    print(data_cn.head(5), '\n', title_cn[:5])
+    # print(data.head(5))
 
-    size_x, size_y = 5, 3
-    plt.figure(figsize=(size_x, size_y))  # 단위 : 인치
+    # size_x, size_y = 5, 3
+    # plt.figure(figsize=(size_x, size_y))  # 단위 : 인치
+    #
+    # plt.hist(data['idf'])
+    # plt.show(block=False)
+    # plt.pause(1)
+    # plt.close()
 
-    plt.hist(data['idf'])
-    plt.show(block=False)
-    plt.pause(1)
-    plt.close()
-
-    data.to_csv('cleaned_text.csv')
+    # data.to_csv('cleaned_text.csv')
     # if word[1] not in stop_pos_list
     data = data['term_freq'].to_dict()
+    data_us = data_us['term_freq'].to_dict()
+    data_ep = data_ep['term_freq'].to_dict()
+    data_cn = data_cn['term_freq'].to_dict()
     # print(word_cloud_dict)
 
     # 워드 클라우드 생성
+    size_x, size_y = 5, 3
     img = draw_cloud(data=data)
-    plt.figure(figsize=(size_x, size_y))  # 단위 : 인치
-    plt.imshow(img)
-    plt.tight_layout(pad=0)
-    plt.axis('off')
-    plt.show(block=False)
-    plt.pause(10)
-    plt.close()
-    img.to_file(os.path.join('img', 'sample_wordcloud.png'))
+    img_us = draw_cloud(data=data_us)
+    img_ep = draw_cloud(data=data_ep)
+    img_cn = draw_cloud(data=data_cn)
+    # plt.figure(figsize=(size_x, size_y))  # 단위 : 인치
+    axes = []
+    # fig = plt.figure(figsize=(size_x, size_y))  # 단위 : 인치
+    figure, ax = plt.subplots(nrows=2, ncols=2)
+    ax.ravel()[0].imshow(img_us)
+    ax.ravel()[0].set_title('US')
+    ax.ravel()[0].set_axis_off()
+    ax.ravel()[1].imshow(img_ep)
+    ax.ravel()[1].set_title('EP')
+    ax.ravel()[1].set_axis_off()
+    ax.ravel()[2].imshow(img_cn)
+    ax.ravel()[2].set_title('CN')
+    ax.ravel()[2].set_axis_off()
+
+    # axes.append(fig.add_subplot(2, 2, 1))
+    # axes[-1].set_title('US')
+    figure.tight_layout()
+    plt.show()
+
+    # plt.imshow(img)
+    # plt.tight_layout(pad=0)
+    # plt.axis('off')
+    # plt.show(block=False)
+    # plt.pause(5)
+
+    # img.to_file(os.path.join('img', 'sample_wordcloud.png'))
+    # plt.close()
 
     # idf 변화에 따른 워드클라우드
     # # idf_rank = 0
