@@ -1,14 +1,15 @@
 from utils import *
 import sys
+import time
 from nltk.tokenize import word_tokenize
 from nltk.stem import SnowballStemmer, WordNetLemmatizer
-from nltk.tag import pos_tag
 from nltk.tag.perceptron import PerceptronTagger
 from wordcloud import WordCloud
 import pandas as pd
 import numpy as np
 import os
 from PIL import Image
+# from nltk.tag import pos_tag
 # import seaborn as sns
 # from text_utils import *
 # import nltk
@@ -25,6 +26,7 @@ stemmer = SnowballStemmer('english')
 tagger = PerceptronTagger()
 
 
+@Timer("load_file()")
 def load_file(fname):
     if os.path.exists(fname[:-5]+'.pickle'):
         print('전처리 결과가 존재합니다, 이전 처리 결과를 활용합니다')
@@ -76,6 +78,7 @@ def load_file(fname):
         return None
 
 
+# @Timer("tf_idf()")
 def tf_idf(docs):
     tf_dict = {}
     df_dict = {}
@@ -95,6 +98,7 @@ def tf_idf(docs):
     return tf_dict, df_dict, idf_dict
 
 
+@Timer("get_major_pos()")
 def get_major_pos(docs):
     # major_pos = {}
     w_list = []
@@ -119,6 +123,7 @@ def get_major_pos(docs):
     return result
 
 
+# @Timer("draw_cloud()")
 def draw_cloud(data):
     mask_im = np.array(Image.open('mask1.png'))
     wc = WordCloud(max_font_size=150, stopwords=stopwords.words("english"), mask=mask_im, background_color='white',
@@ -138,25 +143,24 @@ if len(f_name) == 0:
 else:
     print('입력한 파일 명은 ', f_name[:-5], ', 확장자는 ', f_name[-4:], '입니다.')
     df_eng = load_file(f_name)
-    print(df_eng.head(3))
+    print(df_eng.head(2))
 
     # 2단계: term frequency 산출
     # title_list = df_eng['title_lemma'].tolist()
     doc_cnt = len(df_eng['title_lemma'].tolist())
     term_freq, doc_freq, inverse_df = tf_idf(df_eng['title_lemma'].tolist())
     major_pos = get_major_pos(df_eng['title_lemma1'].tolist())
-    print_step(2, 'Calculate TF & IDF')
     # sample_word = 'mobile'
     # print('Sample Word: [', sample_word, '], term_freq: ', term_freq[sample_word],
     #       ', doc_freq: ', doc_freq[sample_word], ', inverse_df: ', inverse_df[sample_word])
-
+    print_step(2, 'Calculate TF & IDF')
     tf_idf_df = pd.DataFrame({'term_freq': pd.Series(term_freq),
                               'doc_freq': pd.Series(doc_freq),
                               'idf': pd.Series(inverse_df),
                               'major_pos': pd.Series(major_pos)})
     tf_idf_df['idf_rank'] = tf_idf_df['idf'].rank()
     print_step(3, 'Calculate IDF Rank')
-    print(tf_idf_df.sort_values(by='idf', ascending=True).head(3))
+    print(tf_idf_df.sort_values(by='idf', ascending=True).head(2))
 
     # 조건 필터: idf 순위, pos tag
     stop_pos_list = stop_pos(3)  # 1~3으로 입력해서 사용하자, 1은 전치사 등 최소 제거, 2는 부사형 제거, 3은 동사형 제거까지
@@ -190,8 +194,14 @@ else:
                                  'doc_freq': pd.Series(cn_doc_freq),
                                  'idf': pd.Series(cn_inverse_df),
                                  'major_pos': pd.Series(major_pos_cn)})
+    tf_idf_df_us['idf_rank'] = tf_idf_df_us['idf'].rank()
+    tf_idf_df_ep['idf_rank'] = tf_idf_df_ep['idf'].rank()
+    tf_idf_df_cn['idf_rank'] = tf_idf_df_cn['idf'].rank()
 
-    tf_idf_df['idf_rank'] = tf_idf_df['idf'].rank()
+    # tf_idf_df['idf_rank'] = tf_idf_df['idf'].rank()
+    tf_idf_df_us = tf_idf_df_us[tf_idf_df_us['idf_rank'] >= idf_rank]
+    tf_idf_df_ep = tf_idf_df_ep[tf_idf_df_ep['idf_rank'] >= idf_rank]
+    tf_idf_df_cn = tf_idf_df_cn[tf_idf_df_cn['idf_rank'] >= idf_rank]
 
     pass_tag = list(set(tagger.tagdict.values()).difference(stop_pos_list))
 
@@ -220,15 +230,20 @@ else:
     # print(word_cloud_dict)
 
     # 워드 클라우드 생성
-    size_x, size_y = 5, 3
+    size_x, size_y = 10, 8
     img = draw_cloud(data=data)
     img_us = draw_cloud(data=data_us)
     img_ep = draw_cloud(data=data_ep)
     img_cn = draw_cloud(data=data_cn)
     # plt.figure(figsize=(size_x, size_y))  # 단위 : 인치
-    axes = []
     # fig = plt.figure(figsize=(size_x, size_y))  # 단위 : 인치
-    figure, ax = plt.subplots(nrows=2, ncols=2)
+
+    # axes = []
+
+    figure, ax = plt.subplots(nrows=2, ncols=2, figsize=(20, 10))
+    # figure.set_figheight(13)
+    # figure.set_figwidth(20)
+
     ax.ravel()[0].imshow(img_us)
     ax.ravel()[0].set_title('US')
     ax.ravel()[0].set_axis_off()
@@ -238,11 +253,29 @@ else:
     ax.ravel()[2].imshow(img_cn)
     ax.ravel()[2].set_title('CN')
     ax.ravel()[2].set_axis_off()
+    ax.ravel()[3].set_axis_off()
+    figure.tight_layout()
+    plt.show()
+
+    # fig = plt.figure()
+    # ax = fig.add_subplot(2, 2, 1)
+    # ax.imshow(img_us)
+    # ax.set_xlabel('US')
+    # ax.set_xticks([]), ax.set_yticks([])
+    # ax = fig.add_subplot(2, 2, 2)
+    # ax.imshow(img_ep)
+    # ax.set_xlabel('EP')
+    # ax.set_xticks([]), ax.set_yticks([])
+    # ax = fig.add_subplot(2, 2, 3)
+    # ax.imshow(img_cn)
+    # ax.set_xlabel('CN')
+    # ax.set_xticks([]), ax.set_yticks([])
+    # fig.tight_layout()
+    # plt.show()
+
 
     # axes.append(fig.add_subplot(2, 2, 1))
     # axes[-1].set_title('US')
-    figure.tight_layout()
-    plt.show()
 
     # plt.imshow(img)
     # plt.tight_layout(pad=0)
@@ -269,6 +302,7 @@ else:
     # print_step(4, 'Finished to save Wordcloud')
 
 
+@Timer("examine_counts()")
 def examine_counts():
     df_pos = df_eng['title_pos']
     print(df_pos.head(2))

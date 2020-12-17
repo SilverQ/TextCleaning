@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from psycopg2.extras import DictCursor
 import time
+import contextlib
 import numpy as np
 from nltk.corpus import stopwords, wordnet
 # import csv
@@ -16,6 +17,19 @@ from colorama import Style, Fore
 
 starting_time = time.time()
 step_color = Fore.RED
+
+
+class Timer(contextlib.ContextDecorator):
+    def __init__(self, name):
+        self.name = name
+
+    def __enter__(self):
+        self.start = time.time()
+
+    def __exit__(self, ex_type, ex_value, ex_traceback):
+        self.end = time.time()
+        operation_time = self.end - self.start
+        print(f"{self.name}의 수행시간 : {operation_time}")
 
 
 def get_wordnet_pos(treebank_tag):
@@ -219,12 +233,14 @@ def stop_pos(level=3):
     stop_pos_lv3 = stop_pos_lv1 + ['CD', 'EX', 'JJ', 'JJR', 'JJS', 'LS',
                                    'MD', 'PDT', 'POS', 'PRP', 'PRP$', 'RB', 'RBR', 'RBS', 'UH',
                                    'VB', 'VBD', 'VBG', 'VBN', 'VBP', 'VBZ', 'WDT', 'WP', 'WP$', 'WRB']
-    if level == 2:
+    if level == 1:
+        return stop_pos_lv1
+    elif level == 2:
         return stop_pos_lv2
     elif level == 3:
         return stop_pos_lv3
     else:
-        return stop_pos_lv1
+        return []
 
 
 def proc_time(starting_time):
